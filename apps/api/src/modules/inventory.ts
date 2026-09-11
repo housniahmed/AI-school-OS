@@ -36,12 +36,14 @@ inventoryRouter.post('/', requirePermission('inventory:write'), async (req, res,
 
 inventoryRouter.post('/:id/movements', requirePermission('inventory:write'), async (req, res, next) => {
   try {
+    const id = req.params.id;
+    if (typeof id !== 'string' || !id) return res.status(400).json({ error: 'Invalid inventory item id' });
     const input = z.object({
       type: z.enum(['IN', 'RECEIPT', 'OUT', 'TRANSFER', 'ADJUSTMENT']),
       quantity: z.coerce.number().positive(),
       reason: z.string().max(300).optional()
     }).parse(req.body);
-    const item = await prisma.inventoryItem.findFirst({ where: { id: req.params.id, tenantId: req.auth!.tenantId } });
+    const item = await prisma.inventoryItem.findFirst({ where: { id, tenantId: req.auth!.tenantId } });
     if (!item) return res.status(404).json({ error: 'Inventory item not found' });
     let delta = 0;
     if (['IN', 'RECEIPT'].includes(input.type)) delta = input.quantity;
