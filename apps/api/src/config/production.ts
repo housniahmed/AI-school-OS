@@ -3,6 +3,8 @@ export type RuntimeConfig = {
   jwtSecret: string;
   secretsProvider?: string;
   secretsNamespace?: string;
+  openAiApiKey?: string;
+  externalAiProcessingAck?: boolean;
 };
 
 const INSECURE_DEFAULTS = new Set([
@@ -28,5 +30,9 @@ export function validateProductionConfig(config: RuntimeConfig): void {
 
   if (INSECURE_DEFAULTS.has(config.jwtSecret)) {
     throw new Error('JWT_SECRET must be replaced before production deployment');
+  }
+
+  if (config.openAiApiKey && config.externalAiProcessingAck !== true) {
+    throw new Error('External AI processing requires explicit production acknowledgement');
   }
 }
