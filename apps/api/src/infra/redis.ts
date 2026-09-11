@@ -21,7 +21,7 @@ let connectPromise: Promise<void> | undefined;
 
 export async function connectRedis() {
   if (redisClient.isReady) return;
-  connectPromise ??= redisClient.connect().finally(() => {
+  connectPromise ??= redisClient.connect().then(() => undefined).finally(() => {
     connectPromise = undefined;
   });
   await connectPromise;
