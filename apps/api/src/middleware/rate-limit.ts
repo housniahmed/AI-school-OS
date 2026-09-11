@@ -1,11 +1,11 @@
 import { rateLimit } from 'express-rate-limit';
-import { RedisStore } from 'rate-limit-redis';
+import { RedisStore, type RedisReply } from 'rate-limit-redis';
 import { sendRedisCommand } from '../infra/redis.js';
 
 function createRedisStore(prefix: string) {
   return new RedisStore({
     prefix,
-    sendCommand: (...args: string[]) => sendRedisCommand(...args)
+    sendCommand: (...args: string[]) => sendRedisCommand(...args) as Promise<RedisReply>
   });
 }
 
