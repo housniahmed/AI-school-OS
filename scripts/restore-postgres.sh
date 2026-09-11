@@ -5,6 +5,8 @@ set -euo pipefail
 : "${BACKUP_FILE:?BACKUP_FILE is required}"
 : "${GPG_PASSPHRASE_FILE:?GPG_PASSPHRASE_FILE is required}"
 
+PG_RESTORE_BIN="${PG_RESTORE_BIN:-pg_restore}"
+
 [[ -f "$BACKUP_FILE" ]] || { echo "Backup file not found" >&2; exit 1; }
 [[ -f "${BACKUP_FILE}.sha256" ]] || { echo "Backup checksum file not found" >&2; exit 1; }
 
@@ -27,7 +29,7 @@ gpg \
   --output "$plain_backup" \
   "$BACKUP_FILE"
 
-pg_restore \
+"$PG_RESTORE_BIN" \
   --clean \
   --if-exists \
   --no-owner \
