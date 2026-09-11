@@ -1,10 +1,10 @@
-# AI School OS — V0.4.1
+# AI School OS — V0.5
 
 AI-Powered School Resource Management System for Moroccan schools.
 
 ## Current baseline
 
-This repository is now on the **V0.4.1 production-core hardening line**.
+This repository is now on the **V0.5 security and observability line**.
 
 ### Core capabilities
 
@@ -21,15 +21,16 @@ This repository is now on the **V0.4.1 production-core hardening line**.
 - Local fallback mode without an AI API key.
 - Audit trail for authentication, mutations and AI tool execution.
 
-## V0.4.1 production gate
+## V0.5 production-core controls
 
-- Versioned Prisma PostgreSQL migration.
-- Database readiness health check.
-- CI against PostgreSQL 16.
-- API build and automated tests.
-- Integration coverage for authentication and tenant isolation.
-- Production JWT secret validation.
-- Request correlation IDs.
+- Redis-backed distributed rate limiting.
+- Dedicated stricter login rate limiting.
+- Structured request logs with request IDs, latency and tenant/user context.
+- PostgreSQL + Redis readiness checks.
+- Explicit trusted-proxy configuration.
+- Graceful startup/shutdown lifecycle.
+- Integration tests covering Redis readiness and HTTP security headers.
+- PostgreSQL backup/restore runbook.
 
 ## Local development
 
@@ -52,6 +53,10 @@ Demo credentials are development-only and must never be reused for production.
 
 Set `OPENAI_API_KEY` in `apps/api/.env` to activate the OpenAI Responses API agent. Without it, the local fallback answers operational questions through the same permission-aware tools.
 
+## Validation policy
+
+V0.5 is not considered runtime-validated until GitHub Actions reports a successful API and Web run for the change set.
+
 ## Important
 
-This remains a product-development baseline, not a compliance-certified production deployment. Before a real school pilot, complete secrets management, rate limiting, object storage, backups, retention policies, observability, disaster-recovery procedures and a documented privacy/CNDP assessment.
+This remains a product-development baseline, not a compliance-certified production deployment. Before a real school pilot, complete centralized secrets management, vulnerability scanning, encrypted backups, retention policies, disaster-recovery exercises, production observability/alerting and a documented privacy/CNDP assessment.
