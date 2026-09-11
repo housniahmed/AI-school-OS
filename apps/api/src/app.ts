@@ -32,7 +32,7 @@ export function createApp() {
 
   app.use('/health', healthRouter);
   app.use('/api/v1', apiRateLimiter);
-  app.get('/api/v1', (_req, res) => res.json({ name: 'AI School OS API', version: '0.5.0' }));
+  app.get('/api/v1', (_req, res) => res.json({ name: 'AI School OS API', version: '0.6.0' }));
   app.use('/api/v1/auth', authRouter);
   app.use('/api/v1/dashboard', dashboardRouter);
   app.use('/api/v1/assets', assetsRouter);
