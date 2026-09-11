@@ -1,10 +1,10 @@
-# AI School OS — V0.5
+# AI School OS — V0.6
 
 AI-Powered School Resource Management System for Moroccan schools.
 
 ## Current baseline
 
-This repository is now on the **V0.5 security and observability line**.
+**V0.5 security and observability foundation is merged.** V0.6 is the production observability and reliability hardening line.
 
 ### Core capabilities
 
@@ -32,6 +32,18 @@ This repository is now on the **V0.5 security and observability line**.
 - Integration tests covering Redis readiness and HTTP security headers.
 - PostgreSQL backup/restore runbook.
 
+## V0.6 production-reliability work
+
+- Centralized production secret-management contract.
+- Prometheus-compatible metrics with privacy-safe labels.
+- OpenTelemetry-compatible distributed tracing.
+- Dependency and container vulnerability scanning.
+- Encrypted backup and explicit retention controls.
+- Disaster-recovery exercises with measured RPO/RTO.
+- Privacy/CNDP engineering-readiness controls.
+
+Architecture and release gates are documented in `docs/V0.6-ARCHITECTURE.md`.
+
 ## Local development
 
 Backend: `http://localhost:4000`
@@ -55,8 +67,8 @@ Set `OPENAI_API_KEY` in `apps/api/.env` to activate the OpenAI Responses API age
 
 ## Validation policy
 
-V0.5 is not considered runtime-validated until GitHub Actions reports a successful API and Web run for the change set.
+A release candidate is not considered runtime-validated until GitHub Actions reports successful API and Web runs for the change set.
 
 ## Important
 
-This remains a product-development baseline, not a compliance-certified production deployment. Before a real school pilot, complete centralized secrets management, vulnerability scanning, encrypted backups, retention policies, disaster-recovery exercises, production observability/alerting and a documented privacy/CNDP assessment.
+This remains a product-development baseline, not a compliance-certified production deployment. Before a real school pilot, complete the V0.6 release gates and the documented privacy/CNDP assessment. Do not describe the product as CNDP-compliant without the applicable legal review and process-specific status being established.
