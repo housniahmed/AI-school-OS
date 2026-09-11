@@ -37,6 +37,21 @@ test('production requires a secret namespace', () => {
   );
 });
 
+test('production requires explicit acknowledgement before external AI processing', () => {
+  assert.throws(
+    () => validateProductionConfig({ ...VALID_PRODUCTION, openAiApiKey: 'configured', externalAiProcessingAck: false }),
+    /External AI processing requires explicit production acknowledgement/
+  );
+});
+
+test('production accepts external AI only when explicitly acknowledged', () => {
+  assert.doesNotThrow(() => validateProductionConfig({
+    ...VALID_PRODUCTION,
+    openAiApiKey: 'configured',
+    externalAiProcessingAck: true
+  }));
+});
+
 test('valid production configuration is accepted', () => {
   assert.doesNotThrow(() => validateProductionConfig(VALID_PRODUCTION));
 });
