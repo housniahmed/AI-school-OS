@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { prisma } from '../../db.js';
-import { requireAuth, requirePermission } from '../../middleware/auth.js';
+import { prisma } from '../db.js';
+import { requireAuth, requirePermission } from '../middleware/auth.js';
 
 export const maintenanceRouter = Router();
 maintenanceRouter.use(requireAuth, requirePermission('maintenance:read'));
