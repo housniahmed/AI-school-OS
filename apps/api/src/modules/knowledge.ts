@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../db.js';
 import { requireAuth, requirePermission } from '../middleware/auth.js';
@@ -16,4 +17,4 @@ knowledgeRouter.get('/', requirePermission('knowledge:read'), async (req,res,nex
 
 knowledgeRouter.get('/search', requirePermission('knowledge:read'), async (req,res,next)=>{ try { const query=z.string().min(2).max(500).parse(req.query.q); const chunks=await prisma.knowledgeChunk.findMany({where:{document:{tenantId:req.auth!.tenantId}},include:{document:{select:{id:true,title:true,sourceType:true}}},take:400}); const terms=query.toLowerCase().split(/\s+/).filter(Boolean); const rows=chunks.map(c=>({c,score:terms.reduce((s,t)=>s+(c.content.toLowerCase().includes(t)?1:0),0)/Math.max(terms.length,1)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,8); res.json({data:rows.map(x=>({documentId:x.c.document.id,title:x.c.document.title,sourceType:x.c.document.sourceType,score:x.score,content:x.c.content}))}); }catch(e){next(e);} });
 
-knowledgeRouter.post('/', requirePermission('knowledge:write'), async (req,res,next)=>{ try { const input=docSchema.parse(req.body); const chunks=chunkText(input.content); const doc=await prisma.knowledgeDocument.create({data:{tenantId:req.auth!.tenantId,title:input.title,content:input.content,sourceType:input.sourceType,mimeType:input.mimeType,metadata:input.metadata, chunks:{create:await Promise.all(chunks.map(async(content,chunkIndex)=>({chunkIndex,content,embedding:await embed(content)})))}}}); res.status(201).json({data:{id:doc.id,title:doc.title,chunks:chunks.length}}); } catch(e){next(e);} });
+knowledgeRouter.post('/', requirePermission('knowledge:write'), async (req,res,next)=>{ try { const input=docSchema.parse(req.body); const chunks=chunkText(input.content); const doc=await prisma.knowledgeDocument.create({data:{tenantId:req.auth!.tenantId,title:input.title,content:input.content,sourceType:input.sourceType,mimeType:input.mimeType,metadata: input.metadata as Prisma.InputJsonValue | undefined, chunks:{create:await Promise.all(chunks.map(async(content,chunkIndex)=>({chunkIndex,content,embedding:(await embed(content)) ?? undefined})))}}}); res.status(201).json({data:{id:doc.id,title:doc.title,chunks:chunks.length}}); } catch(e){next(e);} });

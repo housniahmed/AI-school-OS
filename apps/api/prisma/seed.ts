@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { PrismaClient, Decimal } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 
 const prisma = new PrismaClient();
@@ -82,7 +82,7 @@ async function main() {
     ['AUDIO-01', 'Vidéoprojecteur Epson', 'Audiovisuel', 'Salle 6A', 'IN_SERVICE'],
     ['LAB-01', 'Microscope numérique', 'Laboratoire', 'Labo sciences', 'IN_SERVICE'],
     ['SEC-01', 'Caméra entrée principale', 'Sécurité', 'Entrée', 'IN_SERVICE']
-  ].map(([assetCode, name, category, location, status]) => prisma.asset.create({ data: { tenantId: tenant.id, campusId: campus.id, assetCode, name, category, location, status: status as 'IN_SERVICE' | 'IN_REPAIR' | 'RETIRED' | 'LOST', qrToken: randomUUID(), purchaseAmount: new Decimal('4500') } })));
+  ].map(([assetCode, name, category, location, status]) => prisma.asset.create({ data: { tenantId: tenant.id, campusId: campus.id, assetCode, name, category, location, status: status as 'IN_SERVICE' | 'IN_REPAIR' | 'RETIRED' | 'LOST', qrToken: randomUUID(), purchaseAmount: new Prisma.Decimal('4500') } })));
 
   await prisma.maintenanceRequest.createMany({ data: [
     { tenantId: tenant.id, assetId: assets[1].id, title: 'Écran et batterie à diagnostiquer', description: 'Signalement utilisateur', status: 'IN_PROGRESS', priority: 1 },
@@ -92,15 +92,15 @@ async function main() {
 
   const supplier = await prisma.supplier.create({ data: { tenantId: tenant.id, name: 'Bureau Pro Maroc', phone: '+212 5 22 00 00 00' } });
   await prisma.inventoryItem.createMany({ data: [
-    { tenantId: tenant.id, supplierId: supplier.id, sku: 'SUP-PAPER-A4', name: 'Ramettes papier A4', category: 'Fournitures', unit: 'ramette', quantity: new Decimal('22'), minimumQty: new Decimal('30') },
-    { tenantId: tenant.id, supplierId: supplier.id, sku: 'SUP-TONER-BR', name: 'Cartouches imprimante', category: 'Fournitures', unit: 'unité', quantity: new Decimal('3'), minimumQty: new Decimal('8') },
-    { tenantId: tenant.id, supplierId: supplier.id, sku: 'SUP-MARKER', name: 'Marqueurs tableau', category: 'Fournitures', unit: 'boîte', quantity: new Decimal('18'), minimumQty: new Decimal('10') }
+    { tenantId: tenant.id, supplierId: supplier.id, sku: 'SUP-PAPER-A4', name: 'Ramettes papier A4', category: 'Fournitures', unit: 'ramette', quantity: new Prisma.Decimal('22'), minimumQty: new Prisma.Decimal('30') },
+    { tenantId: tenant.id, supplierId: supplier.id, sku: 'SUP-TONER-BR', name: 'Cartouches imprimante', category: 'Fournitures', unit: 'unité', quantity: new Prisma.Decimal('3'), minimumQty: new Prisma.Decimal('8') },
+    { tenantId: tenant.id, supplierId: supplier.id, sku: 'SUP-MARKER', name: 'Marqueurs tableau', category: 'Fournitures', unit: 'boîte', quantity: new Prisma.Decimal('18'), minimumQty: new Prisma.Decimal('10') }
   ] });
 
   await prisma.invoice.createMany({ data: [
-    { tenantId: tenant.id, number: 'FAC-2026-001', dueDate: new Date('2026-09-05'), totalAmount: new Decimal('6500'), paidAmount: new Decimal('2500'), status: 'OVERDUE' },
-    { tenantId: tenant.id, number: 'FAC-2026-002', dueDate: new Date('2026-09-08'), totalAmount: new Decimal('7200'), paidAmount: new Decimal('0'), status: 'OVERDUE' },
-    { tenantId: tenant.id, number: 'FAC-2026-003', dueDate: new Date('2026-09-20'), totalAmount: new Decimal('5800'), paidAmount: new Decimal('0'), status: 'ISSUED' }
+    { tenantId: tenant.id, number: 'FAC-2026-001', dueDate: new Date('2026-09-05'), totalAmount: new Prisma.Decimal('6500'), paidAmount: new Prisma.Decimal('2500'), status: 'OVERDUE' },
+    { tenantId: tenant.id, number: 'FAC-2026-002', dueDate: new Date('2026-09-08'), totalAmount: new Prisma.Decimal('7200'), paidAmount: new Prisma.Decimal('0'), status: 'OVERDUE' },
+    { tenantId: tenant.id, number: 'FAC-2026-003', dueDate: new Date('2026-09-20'), totalAmount: new Prisma.Decimal('5800'), paidAmount: new Prisma.Decimal('0'), status: 'ISSUED' }
   ] });
   await prisma.knowledgeDocument.create({
     data: {
@@ -130,9 +130,9 @@ async function main() {
   });
 
   await prisma.expense.createMany({ data: [
-    { tenantId: tenant.id, label: 'Maintenance informatique', category: 'Maintenance', amount: new Decimal('12500') },
-    { tenantId: tenant.id, label: 'Fournitures de rentrée', category: 'Fournitures', amount: new Decimal('18300') },
-    { tenantId: tenant.id, label: 'Contrat sécurité', category: 'Sécurité', amount: new Decimal('8400') }
+    { tenantId: tenant.id, label: 'Maintenance informatique', category: 'Maintenance', amount: new Prisma.Decimal('12500') },
+    { tenantId: tenant.id, label: 'Fournitures de rentrée', category: 'Fournitures', amount: new Prisma.Decimal('18300') },
+    { tenantId: tenant.id, label: 'Contrat sécurité', category: 'Sécurité', amount: new Prisma.Decimal('8400') }
   ] });
 
   console.log('Seed complete. Login: director@atlas-school.ma / Demo@12345');
