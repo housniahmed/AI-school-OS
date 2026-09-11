@@ -9,7 +9,7 @@ import { authRateLimiter } from '../middleware/rate-limit.js';
 export const authRouter = Router();
 
 const loginSchema = z.object({
-  tenantSlug: z.string().trim().min(1).max(100),
+  tenantSlug: z.string().trim().min(1).max(100).optional(),
   email: z.string().trim().email(),
   password: z.string().min(6)
 });
@@ -17,19 +17,22 @@ const loginSchema = z.object({
 authRouter.post('/login', authRateLimiter, async (req, res, next) => {
   try {
     const input = loginSchema.parse(req.body);
-    const tenantSlug = input.tenantSlug.toLowerCase();
     const normalizedEmail = input.email.toLowerCase();
+    const tenantSlug = input.tenantSlug?.toLowerCase();
 
-    const user = await prisma.user.findFirst({
+    const users = await prisma.user.findMany({
       where: {
         email: normalizedEmail,
         status: 'ACTIVE',
-        tenant: { slug: tenantSlug }
+        ...(tenantSlug ? { tenant: { slug: tenantSlug } } : {})
       },
       include: { tenant: true, roles: { include: { role: true } } }
     });
 
-    if (!user) return res.status(401).json({ error: 'Identifiants invalides' });
+    // Without an explicit tenant, only allow legacy login when the email
+    // belongs to exactly one active user. Ambiguous emails must be tenant-scoped.
+    if (users.length !== 1) return res.status(401).json({ error: 'Identifiants invalides' });
+    const user = users[0];
 
     const stored = await prisma.userCredential.findUnique({ where: { userId: user.id } });
     if (!stored || !(await bcrypt.compare(input.password, stored.passwordHash))) {
