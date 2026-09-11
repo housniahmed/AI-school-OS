@@ -166,7 +166,7 @@ jobs:
           echo "GPG_PASSPHRASE_FILE=$passphrase_file" >> "$GITHUB_ENV"
 
       - name: Create encrypted backup
-        run: ./scripts/backup-postgres.sh
+        run: bash ./scripts/backup-postgres.sh
 
       - name: Locate backup artifact
         id: backup
@@ -182,7 +182,7 @@ jobs:
       - name: Restore encrypted backup
         env:
           BACKUP_FILE: ${{ steps.backup.outputs.file }}
-        run: ./scripts/restore-postgres.sh
+        run: bash ./scripts/restore-postgres.sh
 
       - name: Validate restored data
         run: |
