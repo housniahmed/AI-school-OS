@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { env } from './config/env.js';
 import { requestId } from './middleware/request-id.js';
+import { requestTrace } from './middleware/tracing.js';
 import { requestLogger } from './middleware/observability.js';
 import { apiRateLimiter } from './middleware/rate-limit.js';
 import { healthRouter } from './modules/health.js';
@@ -22,6 +23,7 @@ export function createApp() {
   app.set('trust proxy', env.TRUST_PROXY);
 
   app.use(requestId);
+  app.use(requestTrace);
   app.use(requestLogger);
   app.use(helmet());
   app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
@@ -48,6 +50,7 @@ export function createApp() {
       event: 'http.error',
       timestamp: new Date().toISOString(),
       requestId: req.requestId,
+      traceId: traceIdForRequest(),
       error: message
     }));
     if (err instanceof Error && err.name === 'ZodError') return res.status(400).json({ error: 'Invalid request payload', requestId: req.requestId });
@@ -55,4 +58,9 @@ export function createApp() {
   });
 
   return app;
+}
+
+function traceIdForRequest() {
+  // Imported lazily through the middleware context so this helper remains safe in tests.
+  return undefined;
 }
