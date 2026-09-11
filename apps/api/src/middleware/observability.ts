@@ -1,12 +1,18 @@
 import type { NextFunction, Request, Response } from 'express';
+import { context, trace } from '@opentelemetry/api';
 import { renderMetrics, recordHttpRequest } from '../infra/metrics.js';
 
-function sanitizeUserAgent(value: string | undefined) {
-  return value?.slice(0, 256);
+function safeLogPath(req: Request) {
+  if (req.route?.path) return `${req.baseUrl}${req.route.path}` || '/';
+  if (req.path === '/health' || req.path === '/metrics') return req.path;
+  if (req.path.startsWith('/api/')) return '/api/:unmatched';
+  return '/:unmatched';
 }
 
 export function requestLogger(req: Request, res: Response, next: NextFunction) {
   const startedAt = performance.now();
+  const activeSpan = trace.getSpan(context.active());
+  const traceId = activeSpan?.spanContext().traceId;
 
   res.on('finish', () => {
     const durationMs = Number((performance.now() - startedAt).toFixed(2));
@@ -15,14 +21,11 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
       event: 'http.request',
       timestamp: new Date().toISOString(),
       requestId: req.requestId,
+      traceId,
       method: req.method,
-      path: req.path,
+      path: safeLogPath(req),
       statusCode: res.statusCode,
-      durationMs,
-      userId: req.auth?.userId,
-      tenantId: req.auth?.tenantId,
-      ip: req.ip,
-      userAgent: sanitizeUserAgent(req.get('user-agent'))
+      durationMs
     };
 
     const line = JSON.stringify(entry);
