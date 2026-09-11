@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { prisma } from '../../db.js';
-import { requireAuth, requirePermission } from '../../middleware/auth.js';
+import { prisma } from '../db.js';
+import { requireAuth, requirePermission } from '../middleware/auth.js';
 
 export const dashboardRouter = Router();
 dashboardRouter.use(requireAuth, requirePermission('dashboard:read'));
