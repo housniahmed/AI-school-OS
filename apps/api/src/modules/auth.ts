@@ -29,8 +29,8 @@ authRouter.post('/login', authRateLimiter, async (req, res, next) => {
       include: { tenant: true, roles: { include: { role: true } } }
     });
 
-    // Without an explicit tenant, only allow legacy login when the email
-    // belongs to exactly one active user. Ambiguous emails must be tenant-scoped.
+    // Legacy login remains supported only when the identity is unambiguous.
+    // If the same email exists in multiple tenants, tenantSlug is mandatory.
     if (users.length !== 1) return res.status(401).json({ error: 'Identifiants invalides' });
     const user = users[0];
 
