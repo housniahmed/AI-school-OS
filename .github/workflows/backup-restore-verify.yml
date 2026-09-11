@@ -1,0 +1,92 @@
+name: Backup Restore Verification
+
+on:
+  push:
+    branches: [feat/v0.6-production-reliability]
+  pull_request:
+    branches: [main, sync/v0.3-final]
+
+jobs:
+  backup-restore:
+    name: Encrypted backup and restore verification
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16.15
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: schoolos
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d schoolos"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/schoolos
+      BACKUP_DIR: ${{ runner.temp }}/ai-school-os-backups
+      BACKUP_RETENTION_DAYS: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install API dependencies
+        working-directory: apps/api
+        run: npm install --no-audit --no-fund
+      - name: Generate Prisma client
+        working-directory: apps/api
+        run: npm run prisma:generate
+      - name: Apply migrations
+        working-directory: apps/api
+        run: npm run prisma:migrate:deploy
+      - name: Pin PostgreSQL 16.15 client tools
+        run: |
+          printf '%s\n' '#!/usr/bin/env bash' 'exec docker run --rm --network host -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" -v "$RUNNER_TEMP:$RUNNER_TEMP" postgres:16.15 psql "$@"' > "${{ runner.temp }}/psql-16.15"
+          printf '%s\n' '#!/usr/bin/env bash' 'exec docker run --rm --network host -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" -v "$RUNNER_TEMP:$RUNNER_TEMP" postgres:16.15 pg_dump "$@"' > "${{ runner.temp }}/pg_dump-16.15"
+          printf '%s\n' '#!/usr/bin/env bash' 'exec docker run --rm --network host -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" -v "$RUNNER_TEMP:$RUNNER_TEMP" postgres:16.15 pg_restore "$@"' > "${{ runner.temp }}/pg_restore-16.15"
+          chmod 700 "${{ runner.temp }}/psql-16.15" "${{ runner.temp }}/pg_dump-16.15" "${{ runner.temp }}/pg_restore-16.15"
+          "${{ runner.temp }}/psql-16.15" --version
+          "${{ runner.temp }}/pg_dump-16.15" --version
+          "${{ runner.temp }}/pg_restore-16.15" --version
+          echo "PG_DUMP_BIN=${{ runner.temp }}/pg_dump-16.15" >> "$GITHUB_ENV"
+          echo "PG_RESTORE_BIN=${{ runner.temp }}/pg_restore-16.15" >> "$GITHUB_ENV"
+          echo "PG_PSQL_BIN=${{ runner.temp }}/psql-16.15" >> "$GITHUB_ENV"
+      - name: Create restore sentinel
+        run: |
+          PGPASSWORD=ci "$PG_PSQL_BIN" "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE TABLE IF NOT EXISTS backup_restore_sentinel (
+            id integer PRIMARY KEY,
+            value text NOT NULL
+          );
+          INSERT INTO backup_restore_sentinel (id, value)
+          VALUES (1, 'v0.6-restore-ok')
+          ON CONFLICT (id) DO UPDATE SET value = EXCLUDED.value;
+          SQL
+      - name: Prepare backup secret
+        run: |
+          passphrase_file="${{ runner.temp }}/backup-passphrase"
+          umask 077
+          openssl rand -hex 32 > "$passphrase_file"
+          echo "GPG_PASSPHRASE_FILE=$passphrase_file" >> "$GITHUB_ENV"
+      - name: Create encrypted backup
+        run: bash ./scripts/backup-postgres.sh
+      - name: Locate backup artifact
+        id: backup
+        run: |
+          backup_file="$(find "$BACKUP_DIR" -maxdepth 1 -type f -name 'schoolos-*.dump.gpg' -print -quit)"
+          test -n "$backup_file"
+          echo "file=$backup_file" >> "$GITHUB_OUTPUT"
+      - name: Reset restore database
+        run: |
+          PGPASSWORD=ci "$PG_PSQL_BIN" "$DATABASE_URL" -v ON_ERROR_STOP=1 -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'
+      - name: Restore encrypted backup
+        env:
+          BACKUP_FILE: ${{ steps.backup.outputs.file }}
+        run: bash ./scripts/restore-postgres.sh
+      - name: Validate restored data
+        run: |
+          PGPASSWORD=ci "$PG_PSQL_BIN" "$DATABASE_URL" -v ON_ERROR_STOP=1 -tAc "SELECT value FROM backup_restore_sentinel WHERE id = 1" | grep -Fx 'v0.6-restore-ok'
+          PGPASSWORD=ci "$PG_PSQL_BIN" "$DATABASE_URL" -v ON_ERROR_STOP=1 -tAc "SELECT COUNT(*) FROM _prisma_migrations" | grep -Eq '^[[:space:]]*[1-9][0-9]*[[:space:]]*$'
