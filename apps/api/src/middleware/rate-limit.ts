@@ -2,9 +2,12 @@ import { rateLimit } from 'express-rate-limit';
 import { RedisStore } from 'rate-limit-redis';
 import { redisClient } from '../infra/redis.js';
 
-const redisStore = new RedisStore({
-  sendCommand: (...args: string[]) => redisClient.sendCommand(args)
-});
+function createRedisStore(prefix: string) {
+  return new RedisStore({
+    prefix,
+    sendCommand: (...args: string[]) => redisClient.sendCommand(args)
+  });
+}
 
 export const apiRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -12,7 +15,7 @@ export const apiRateLimiter = rateLimit({
   standardHeaders: 'draft-8',
   legacyHeaders: false,
   identifier: 'api',
-  store: redisStore,
+  store: createRedisStore('ai-school-os:ratelimit:api:'),
   skip: (req) => req.path.startsWith('/health')
 });
 
@@ -22,5 +25,5 @@ export const authRateLimiter = rateLimit({
   standardHeaders: 'draft-8',
   legacyHeaders: false,
   identifier: 'auth-login',
-  store: redisStore
+  store: createRedisStore('ai-school-os:ratelimit:auth:')
 });
