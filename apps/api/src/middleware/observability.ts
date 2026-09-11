@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
+import { recordHttpRequest } from '../infra/metrics.js';
 
 function sanitizeUserAgent(value: string | undefined) {
   return value?.slice(0, 256);
@@ -9,6 +10,7 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
 
   res.on('finish', () => {
     const durationMs = Number((performance.now() - startedAt).toFixed(2));
+    recordHttpRequest(req, res.statusCode, durationMs);
     const entry = {
       event: 'http.request',
       timestamp: new Date().toISOString(),
