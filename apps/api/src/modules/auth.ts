@@ -9,16 +9,23 @@ import { authRateLimiter } from '../middleware/rate-limit.js';
 export const authRouter = Router();
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  tenantSlug: z.string().trim().min(1).max(100),
+  email: z.string().trim().email(),
   password: z.string().min(6)
 });
 
 authRouter.post('/login', authRateLimiter, async (req, res, next) => {
   try {
     const input = loginSchema.parse(req.body);
+    const tenantSlug = input.tenantSlug.toLowerCase();
     const normalizedEmail = input.email.toLowerCase();
+
     const user = await prisma.user.findFirst({
-      where: { email: normalizedEmail, status: 'ACTIVE' },
+      where: {
+        email: normalizedEmail,
+        status: 'ACTIVE',
+        tenant: { slug: tenantSlug }
+      },
       include: { tenant: true, roles: { include: { role: true } } }
     });
 
