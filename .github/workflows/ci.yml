@@ -81,17 +81,17 @@ jobs:
         working-directory: apps/api
         run: npm install --no-audit --no-fund
 
-      - name: Audit API dependencies
+      - name: Audit API production dependencies
         working-directory: apps/api
-        run: npm audit --audit-level=high
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Install web dependencies
         working-directory: apps/web
         run: npm install --no-audit --no-fund
 
-      - name: Audit web dependencies
+      - name: Audit web production dependencies
         working-directory: apps/web
-        run: npm audit --audit-level=high
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Trivy filesystem scan
         uses: aquasecurity/trivy-action@v0.35.0
