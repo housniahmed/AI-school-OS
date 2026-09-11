@@ -146,6 +146,28 @@ jobs:
         working-directory: apps/api
         run: npm run prisma:migrate:deploy
 
+      - name: Install PostgreSQL 16.15 client wrappers
+        run: |
+          cat > "${{ runner.temp }}/pg_dump-16.15" <<'EOF'
+          #!/usr/bin/env bash
+          exec docker run --rm --network host \
+            -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" \
+            -v "$RUNNER_TEMP:$RUNNER_TEMP" \
+            postgres:16.15 pg_dump "$@"
+          EOF
+          cat > "${{ runner.temp }}/pg_restore-16.15" <<'EOF'
+          #!/usr/bin/env bash
+          exec docker run --rm --network host \
+            -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" \
+            -v "$RUNNER_TEMP:$RUNNER_TEMP" \
+            postgres:16.15 pg_restore "$@"
+          EOF
+          chmod 700 "${{ runner.temp }}/pg_dump-16.15" "${{ runner.temp }}/pg_restore-16.15"
+          "${{ runner.temp }}/pg_dump-16.15" --version
+          "${{ runner.temp }}/pg_restore-16.15" --version
+          echo "PG_DUMP_BIN=${{ runner.temp }}/pg_dump-16.15" >> "$GITHUB_ENV"
+          echo "PG_RESTORE_BIN=${{ runner.temp }}/pg_restore-16.15" >> "$GITHUB_ENV"
+
       - name: Create restore sentinel
         run: |
           PGPASSWORD=ci psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
@@ -162,7 +184,7 @@ jobs:
         run: |
           passphrase_file="${{ runner.temp }}/backup-passphrase"
           umask 077
-          printf '%s' 'ci-only-backup-passphrase-v0.6' > "$passphrase_file"
+          openssl rand -hex 32 > "$passphrase_file"
           echo "GPG_PASSPHRASE_FILE=$passphrase_file" >> "$GITHUB_ENV"
 
       - name: Create encrypted backup
