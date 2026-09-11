@@ -6,6 +6,7 @@ set -euo pipefail
 : "${GPG_PASSPHRASE_FILE:?GPG_PASSPHRASE_FILE is required}"
 
 RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-35}"
+PG_DUMP_BIN="${PG_DUMP_BIN:-pg_dump}"
 TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -p "$BACKUP_DIR"
 umask 077
@@ -19,7 +20,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-pg_dump --format=custom --no-owner --no-privileges --file="$plain_backup" "$DATABASE_URL"
+"$PG_DUMP_BIN" --format=custom --no-owner --no-privileges --file="$plain_backup" "$DATABASE_URL"
 
 gpg \
   --batch \
