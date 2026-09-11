@@ -17,10 +17,21 @@ redisClient.on('reconnecting', () => {
   console.warn(JSON.stringify({ event: 'redis.reconnecting' }));
 });
 
+let connectPromise: Promise<void> | undefined;
+
 export async function connectRedis() {
-  if (!redisClient.isOpen) await redisClient.connect();
+  if (redisClient.isReady) return;
+  connectPromise ??= redisClient.connect().finally(() => {
+    connectPromise = undefined;
+  });
+  await connectPromise;
 }
 
 export async function disconnectRedis() {
   if (redisClient.isOpen) await redisClient.quit();
+}
+
+export async function sendRedisCommand(...args: string[]) {
+  await connectRedis();
+  return redisClient.sendCommand(args);
 }
