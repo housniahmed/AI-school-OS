@@ -1,12 +1,18 @@
 import type { NextFunction, Request, Response } from 'express';
 import { context, trace } from '@opentelemetry/api';
 import { renderMetrics, recordHttpRequest } from '../infra/metrics.js';
+import { env } from '../config/env.js';
 
 function safeLogPath(req: Request) {
   if (req.route?.path) return `${req.baseUrl}${req.route.path}` || '/';
   if (req.path === '/health' || req.path === '/metrics') return req.path;
   if (req.path.startsWith('/api/')) return '/api/:unmatched';
   return '/:unmatched';
+}
+
+function metricsAuthorized(req: Request): boolean {
+  if (!env.METRICS_TOKEN) return env.NODE_ENV !== 'production';
+  return req.get('authorization') === `Bearer ${env.METRICS_TOKEN}`;
 }
 
 export function requestLogger(req: Request, res: Response, next: NextFunction) {
@@ -35,6 +41,10 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
   });
 
   if (req.path === '/metrics') {
+    if (!metricsAuthorized(req)) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
     res.type('text/plain; version=0.0.4; charset=utf-8').send(renderMetrics());
     return;
   }
