@@ -10,7 +10,7 @@ import {
 
 const tracer = trace.getTracer('ai-school-os/http');
 
-function safeRoute(req: Request): string {
+export function normalizeTraceRoute(req: Pick<Request, 'path' | 'route'>): string {
   if (req.route?.path) return String(req.route.path);
   if (req.path === '/health' || req.path === '/metrics') return req.path;
   if (req.path.startsWith('/api/')) return '/api/:unmatched';
@@ -19,7 +19,7 @@ function safeRoute(req: Request): string {
 
 function finishSpan(span: Span, req: Request, res: Response) {
   span.setAttribute('http.response.status_code', res.statusCode);
-  span.setAttribute('http.route', safeRoute(req));
+  span.setAttribute('http.route', normalizeTraceRoute(req));
   span.setAttribute('app.request_id', req.requestId);
 
   if (res.statusCode >= 500) {
@@ -33,7 +33,7 @@ function finishSpan(span: Span, req: Request, res: Response) {
 
 export function requestTrace(req: Request, res: Response, next: NextFunction) {
   const extractedContext = propagation.extract(context.active(), req.headers);
-  const span = tracer.startSpan(`${req.method} ${safeRoute(req)}`, {
+  const span = tracer.startSpan(`${req.method} ${normalizeTraceRoute(req)}`, {
     kind: SpanKind.SERVER,
     attributes: {
       'http.request.method': req.method
