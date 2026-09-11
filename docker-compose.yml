@@ -1,0 +1,27 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: schoolos
+      POSTGRES_PASSWORD: schoolos
+      POSTGRES_DB: schoolos
+    ports:
+      - "5432:5432"
+    volumes:
+      - schoolos_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U schoolos -d schoolos"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    volumes:
+      - schoolos_redis:/data
+
+volumes:
+  schoolos_pgdata:
+  schoolos_redis:
