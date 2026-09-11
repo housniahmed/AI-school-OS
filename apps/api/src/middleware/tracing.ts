@@ -20,7 +20,9 @@ export function normalizeTraceRoute(req: Pick<Request, 'path' | 'route'>): strin
 function finishSpan(span: Span, req: Request, res: Response) {
   span.setAttribute('http.response.status_code', res.statusCode);
   span.setAttribute('http.route', normalizeTraceRoute(req));
-  span.setAttribute('app.request_id', req.requestId);
+  if (req.requestId) {
+    span.setAttribute('app.request_id', req.requestId);
+  }
 
   if (res.statusCode >= 500) {
     span.setStatus({ code: SpanStatusCode.ERROR });
