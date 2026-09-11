@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
-import { recordHttpRequest } from '../infra/metrics.js';
+import { renderMetrics, recordHttpRequest } from '../infra/metrics.js';
 
 function sanitizeUserAgent(value: string | undefined) {
   return value?.slice(0, 256);
@@ -30,6 +30,11 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
     else if (res.statusCode >= 400) console.warn(line);
     else console.info(line);
   });
+
+  if (req.path === '/metrics') {
+    res.type('text/plain; version=0.0.4; charset=utf-8').send(renderMetrics());
+    return;
+  }
 
   next();
 }
