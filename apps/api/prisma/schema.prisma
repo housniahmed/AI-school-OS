@@ -7,12 +7,51 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum UserStatus { ACTIVE INACTIVE }
-enum AssetStatus { IN_SERVICE IN_REPAIR RETIRED LOST }
-enum MaintenanceStatus { OPEN ASSIGNED IN_PROGRESS RESOLVED CANCELLED }
-enum StockMovementType { IN RECEIPT OUT TRANSFER ADJUSTMENT }
-enum InvoiceStatus { DRAFT ISSUED PARTIAL PAID OVERDUE CANCELLED }
-enum AuditAction { CREATE READ UPDATE DELETE EXECUTE LOGIN }
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum AssetStatus {
+  IN_SERVICE
+  IN_REPAIR
+  RETIRED
+  LOST
+}
+
+enum MaintenanceStatus {
+  OPEN
+  ASSIGNED
+  IN_PROGRESS
+  RESOLVED
+  CANCELLED
+}
+
+enum StockMovementType {
+  IN
+  RECEIPT
+  OUT
+  TRANSFER
+  ADJUSTMENT
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PARTIAL
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum AuditAction {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  EXECUTE
+  LOGIN
+}
 
 model Tenant {
   id        String   @id @default(cuid())
