@@ -6,7 +6,9 @@ import { createServer, type Server } from 'node:http';
 
 process.env.NODE_ENV = 'test';
 process.env.DATABASE_URL ??= 'postgresql://schoolos:schoolos@localhost:5432/schoolos';
-process.env.PORT ??= '0';
+// The HTTP server still listens on an ephemeral OS-assigned port below.
+// PORT only needs to satisfy the application configuration schema during module import.
+process.env.PORT ??= '4000';
 process.env.CORS_ORIGIN ??= 'http://localhost:5173';
 process.env.JWT_SECRET ??= 'ci-only-secret-with-32-characters-minimum';
 
