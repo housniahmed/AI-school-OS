@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { prisma } from '../db.js';
 import { env } from '../config/env.js';
+import { authRateLimiter } from '../middleware/rate-limit.js';
 
 export const authRouter = Router();
 
@@ -12,13 +13,15 @@ const loginSchema = z.object({
   password: z.string().min(6)
 });
 
-authRouter.post('/login', async (req, res, next) => {
+authRouter.post('/login', authRateLimiter, async (req, res, next) => {
   try {
     const input = loginSchema.parse(req.body);
+    const normalizedEmail = input.email.toLowerCase();
     const user = await prisma.user.findFirst({
-      where: { email: input.email.toLowerCase(), status: 'ACTIVE' },
+      where: { email: normalizedEmail, status: 'ACTIVE' },
       include: { tenant: true, roles: { include: { role: true } } }
     });
+
     if (!user) return res.status(401).json({ error: 'Identifiants invalides' });
 
     const stored = await prisma.userCredential.findUnique({ where: { userId: user.id } });
@@ -34,7 +37,14 @@ authRouter.post('/login', async (req, res, next) => {
     );
 
     await prisma.auditEvent.create({
-      data: { tenantId: user.tenantId, userId: user.id, action: 'LOGIN', entityType: 'User', entityId: user.id }
+      data: {
+        tenantId: user.tenantId,
+        userId: user.id,
+        action: 'LOGIN',
+        entityType: 'User',
+        entityId: user.id,
+        metadata: { requestId: req.requestId }
+      }
     });
 
     res.json({
