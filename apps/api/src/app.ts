@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import { context, trace } from '@opentelemetry/api';
 import { env } from './config/env.js';
 import { requestId } from './middleware/request-id.js';
 import { requestTrace } from './middleware/tracing.js';
@@ -45,22 +46,17 @@ export function createApp() {
   app.use((_req, res) => res.status(404).json({ error: 'Route not found' }));
 
   app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
-    const message = err instanceof Error ? err.message : String(err);
+    const activeSpan = trace.getSpan(context.active());
     console.error(JSON.stringify({
       event: 'http.error',
       timestamp: new Date().toISOString(),
       requestId: req.requestId,
-      traceId: traceIdForRequest(),
-      error: message
+      traceId: activeSpan?.spanContext().traceId,
+      errorType: err instanceof Error ? err.name : 'UnknownError'
     }));
     if (err instanceof Error && err.name === 'ZodError') return res.status(400).json({ error: 'Invalid request payload', requestId: req.requestId });
     res.status(500).json({ error: 'Internal server error', requestId: req.requestId });
   });
 
   return app;
-}
-
-function traceIdForRequest() {
-  // Imported lazily through the middleware context so this helper remains safe in tests.
-  return undefined;
 }
