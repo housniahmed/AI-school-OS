@@ -23,14 +23,25 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20
+      redis:
+        image: redis:7.4-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
     defaults:
       run:
         working-directory: apps/api
     env:
       DATABASE_URL: postgresql://ci:ci@localhost:5432/schoolos
+      REDIS_URL: redis://localhost:6379
       JWT_SECRET: ci-only-secret-with-32-characters-minimum
       NODE_ENV: test
       CORS_ORIGIN: http://localhost:5173
+      TRUST_PROXY: 1
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
