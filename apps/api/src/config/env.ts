@@ -4,7 +4,9 @@ import { validateProductionConfig } from './production.js';
 
 const schema = z.object({
   DATABASE_URL: z.string().min(1),
+  REDIS_URL: z.string().url().default('redis://localhost:6379'),
   PORT: z.coerce.number().int().positive().default(4000),
+  TRUST_PROXY: z.coerce.number().int().min(0).default(1),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
   JWT_SECRET: z.string().min(24).default('dev-only-change-this-secret-please'),
   OPENAI_API_KEY: z.string().optional(),
