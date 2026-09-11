@@ -5,6 +5,7 @@ export type RuntimeConfig = {
   secretsNamespace?: string;
   openAiApiKey?: string;
   externalAiProcessingAck?: boolean;
+  metricsToken?: string;
 };
 
 const INSECURE_DEFAULTS = new Set([
@@ -34,5 +35,9 @@ export function validateProductionConfig(config: RuntimeConfig): void {
 
   if (config.openAiApiKey && config.externalAiProcessingAck !== true) {
     throw new Error('External AI processing requires explicit production acknowledgement');
+  }
+
+  if (!config.metricsToken?.trim() || config.metricsToken.length < 32) {
+    throw new Error('METRICS_TOKEN must contain at least 32 characters in production');
   }
 }
