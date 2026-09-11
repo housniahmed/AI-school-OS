@@ -1,13 +1,12 @@
 import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { randomUUID } from 'node:crypto';
 import { createServer, type Server } from 'node:http';
 
 process.env.NODE_ENV = 'test';
 process.env.DATABASE_URL ??= 'postgresql://schoolos:schoolos@localhost:5432/schoolos';
-// The HTTP server still listens on an ephemeral OS-assigned port below.
-// PORT only needs to satisfy the application configuration schema during module import.
 process.env.PORT ??= '4000';
 process.env.REDIS_URL ??= 'redis://localhost:6379';
 process.env.TRUST_PROXY ??= '1';
@@ -22,21 +21,34 @@ let server: Server | undefined;
 let baseUrl = '';
 let tenantAId = '';
 let tenantBId = '';
+let tenantASlug = '';
+let tenantBSlug = '';
 let assetAId = '';
 let assetBId = '';
+let sharedEmail = '';
 
 async function request(path: string, init: RequestInit = {}) {
   return fetch(`${baseUrl}${path}`, init);
 }
 
-async function login(email: string, password: string) {
+async function login(tenantSlug: string, email: string, password: string) {
   const response = await request('/api/v1/auth/login', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ email, password })
+    body: JSON.stringify({ tenantSlug, email, password })
   });
   assert.equal(response.status, 200);
-  return (await response.json()) as { token: string };
+  return (await response.json()) as { token: string; user: { id: string; email: string; school: string } };
+}
+
+async function loginExpecting401(tenantSlug: string, email: string, password: string) {
+  const response = await request('/api/v1/auth/login', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ tenantSlug, email, password })
+  });
+  assert.equal(response.status, 401);
+  return response;
 }
 
 before(async () => {
@@ -45,6 +57,7 @@ before(async () => {
   const suffix = randomUUID().slice(0, 8);
   const password = 'Integration@12345';
   const passwordHash = await bcrypt.hash(password, 4);
+  sharedEmail = `shared-${suffix}@example.test`;
 
   const role = await prisma.role.upsert({
     where: { id: 'integration-director-role' },
@@ -66,6 +79,8 @@ before(async () => {
   const tenantB = await prisma.tenant.create({ data: { name: `Integration B ${suffix}`, slug: `integration-b-${suffix}` } });
   tenantAId = tenantA.id;
   tenantBId = tenantB.id;
+  tenantASlug = tenantA.slug;
+  tenantBSlug = tenantB.slug;
 
   const userA = await prisma.user.create({
     data: {
@@ -82,6 +97,27 @@ before(async () => {
       tenantId: tenantBId,
       email: `b-${suffix}@example.test`,
       firstName: 'Tenant',
+      lastName: 'B',
+      roles: { create: { roleId: role.id } },
+      credential: { create: { passwordHash } }
+    }
+  });
+
+  await prisma.user.create({
+    data: {
+      tenantId: tenantAId,
+      email: sharedEmail,
+      firstName: 'Shared',
+      lastName: 'A',
+      roles: { create: { roleId: role.id } },
+      credential: { create: { passwordHash } }
+    }
+  });
+  await prisma.user.create({
+    data: {
+      tenantId: tenantBId,
+      email: sharedEmail,
+      firstName: 'Shared',
       lastName: 'B',
       roles: { create: { roleId: role.id } },
       credential: { create: { passwordHash } }
@@ -129,30 +165,49 @@ test('requests receive correlation and security headers', async () => {
   assert.ok(response.headers.get('ratelimit'));
 });
 
-test('login issues a token for an active user', async () => {
-  const suffix = (await prisma.tenant.findUniqueOrThrow({ where: { id: tenantAId } })).slug.replace('integration-a-', '');
+test('login requires a tenant and issues a token for an active user', async () => {
   const response = await request('/api/v1/auth/login', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ email: `a-${suffix}@example.test`, password: 'Integration@12345' })
+    body: JSON.stringify({ email: sharedEmail, password: 'Integration@12345' })
   });
-  assert.equal(response.status, 200);
-  const body = await response.json() as { token: string };
-  assert.ok(body.token);
+  assert.equal(response.status, 400);
+
+  const result = await login(tenantASlug, sharedEmail, 'Integration@12345');
+  assert.ok(result.token);
+  assert.equal(result.user.email, sharedEmail);
+  assert.equal(result.user.school, `Integration A ${tenantASlug.replace('integration-a-', '')}`);
+});
+
+test('the same email resolves to the correct user in each tenant', async () => {
+  const resultA = await login(tenantASlug, sharedEmail, 'Integration@12345');
+  const resultB = await login(tenantBSlug, sharedEmail, 'Integration@12345');
+
+  assert.notEqual(resultA.user.id, resultB.user.id);
+  assert.equal(resultA.user.school, `Integration A ${tenantASlug.replace('integration-a-', '')}`);
+  assert.equal(resultB.user.school, `Integration B ${tenantBSlug.replace('integration-b-', '')}`);
+
+  const payloadA = jwt.verify(resultA.token, process.env.JWT_SECRET!) as jwt.JwtPayload & { tenantId?: string };
+  const payloadB = jwt.verify(resultB.token, process.env.JWT_SECRET!) as jwt.JwtPayload & { tenantId?: string };
+  assert.equal(payloadA.tenantId, tenantAId);
+  assert.equal(payloadB.tenantId, tenantBId);
+});
+
+test('wrong tenant or wrong password cannot authenticate', async () => {
+  await loginExpecting401(tenantASlug, sharedEmail, 'WrongPassword@12345');
+  await loginExpecting401(tenantBSlug, sharedEmail, 'WrongPassword@12345');
 });
 
 test('tenant A cannot see tenant B assets', async () => {
-  const suffix = (await prisma.tenant.findUniqueOrThrow({ where: { id: tenantAId } })).slug.replace('integration-a-', '');
-  const { token } = await login(`a-${suffix}@example.test`, 'Integration@12345');
-  const response = await request('/api/v1/assets', { headers: { authorization: `Bearer ${token}` } });
+  const result = await login(tenantASlug, sharedEmail, 'Integration@12345');
+  const response = await request('/api/v1/assets', { headers: { authorization: `Bearer ${result.token}` } });
   assert.equal(response.status, 200);
   const body = await response.json() as { data: Array<{ id: string }> };
   assert.deepEqual(body.data.map((asset) => asset.id), [assetAId]);
 });
 
 test('tenant A gets 404 for a tenant B asset id', async () => {
-  const suffix = (await prisma.tenant.findUniqueOrThrow({ where: { id: tenantAId } })).slug.replace('integration-a-', '');
-  const { token } = await login(`a-${suffix}@example.test`, 'Integration@12345');
-  const response = await request(`/api/v1/assets/${assetBId}`, { headers: { authorization: `Bearer ${token}` } });
+  const result = await login(tenantASlug, sharedEmail, 'Integration@12345');
+  const response = await request(`/api/v1/assets/${assetBId}`, { headers: { authorization: `Bearer ${result.token}` } });
   assert.equal(response.status, 404);
 });
