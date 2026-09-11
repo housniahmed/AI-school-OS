@@ -1,15 +1,26 @@
 export type RuntimeConfig = {
   nodeEnv?: string;
   jwtSecret: string;
+  secretsProvider?: string;
+  secretsNamespace?: string;
 };
 
 const INSECURE_DEFAULTS = new Set([
   'dev-only-change-this-secret-please',
-  'change-me-with-at-least-24-characters'
+  'change-me-with-at-least-24-characters',
+  'change-me-with-at-least-32-characters-for-local-use'
 ]);
 
 export function validateProductionConfig(config: RuntimeConfig): void {
   if (config.nodeEnv !== 'production') return;
+
+  if (config.secretsProvider !== 'external') {
+    throw new Error('SECRETS_PROVIDER must be external in production');
+  }
+
+  if (!config.secretsNamespace?.trim()) {
+    throw new Error('SECRETS_NAMESPACE must be configured in production');
+  }
 
   if (config.jwtSecret.length < 32) {
     throw new Error('JWT_SECRET must contain at least 32 characters in production');
