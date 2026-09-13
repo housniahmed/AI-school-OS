@@ -1,0 +1,17 @@
+name: Actions Scheduling Diagnostic
+
+on:
+  push:
+    branches:
+      - feat/v0.6-production-reliability
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostic:
+    name: Minimal scheduling test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirm Actions job scheduling
+        run: echo "GitHub Actions scheduled this diagnostic job successfully."
