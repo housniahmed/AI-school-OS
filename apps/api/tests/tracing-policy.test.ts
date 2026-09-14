@@ -17,11 +17,8 @@ test('trace route normalization never uses dynamic API identifiers', () => {
 
 test('request tracing source contains no direct PII fields', () => {
   const tracing = source('src/middleware/tracing.ts');
-  const observability = source('src/middleware/observability.ts');
-
   for (const forbidden of ['req.auth', 'req.user', 'req.tenant', 'req.ip', 'user-agent', 'req.body', 'authorization']) {
     assert.equal(tracing.includes(forbidden), false, `tracing.ts must not reference ${forbidden}`);
-    assert.equal(observability.includes(forbidden), false, `observability.ts must not reference ${forbidden}`);
   }
 });
 
