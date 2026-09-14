@@ -2,9 +2,11 @@ name: Backup Restore Verification
 
 on:
   push:
-    branches: [feat/v0.6-production-reliability]
+    branches:
+      - 'feat/v0.6-production-reliability'
   pull_request:
-    branches: [sync/v0.3-final]
+    branches:
+      - 'sync/v0.3-final'
   workflow_dispatch:
 
 permissions:
@@ -14,6 +16,7 @@ jobs:
   backup-restore:
     name: Encrypted backup and restore verification
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     services:
       postgres:
         image: postgres:16.15
