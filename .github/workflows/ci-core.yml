@@ -1,5 +1,7 @@
 name: CI Core
 
+# V0.6 production reliability: core CI includes measurable encrypted backup/restore DR verification.
+
 on:
   push:
     branches: [main, sync/v0.3-final, feat/v0.6-production-reliability]
