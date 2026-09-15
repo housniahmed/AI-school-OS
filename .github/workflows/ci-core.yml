@@ -1,0 +1,71 @@
+name: CI Core
+
+# V0.6 production reliability: core CI remains isolated from the DR verification workflow.
+
+on:
+  push:
+    branches: [main, sync/v0.3-final, feat/v0.6-production-reliability]
+  pull_request:
+    branches: [main, sync/v0.3-final]
+  workflow_dispatch:
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: schoolos
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d schoolos"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      redis:
+        image: redis:7.4-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    defaults:
+      run:
+        working-directory: apps/api
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/schoolos
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: ci-only-secret-with-32-characters-minimum
+      NODE_ENV: test
+      CORS_ORIGIN: http://localhost:5173
+      TRUST_PROXY: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npm run prisma:generate
+      - run: npm run prisma:validate
+      - run: npm run prisma:migrate:deploy
+      - run: npm run build
+      - run: npm test
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npm run build

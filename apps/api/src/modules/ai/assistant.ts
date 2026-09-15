@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { requireAuth, requirePermission } from '../../middleware/auth.js';
 import { prisma } from '../../db.js';
+import { buildAiAuditMetadata } from '../../infra/privacy.js';
 import { runAiAgent } from './provider.js';
 
 export const aiRouter = Router();
@@ -19,7 +20,7 @@ aiRouter.post('/query', async (req, res, next) => {
         userId: req.auth!.userId,
         action: 'EXECUTE',
         entityType: 'AIAgent',
-        metadata: { mode: result.mode, message: message.slice(0, 300), toolName: result.toolName }
+        metadata: buildAiAuditMetadata({ mode: result.mode, toolName: result.toolName })
       }
     });
     res.json({ data: result });
