@@ -58,7 +58,7 @@ jobs:
         run: |
           set -euo pipefail
           for tool in psql pg_dump pg_restore; do
-            printf '%s\n' '#!/usr/bin/env bash' "exec docker run --rm --network host -v \"$GITHUB_WORKSPACE:$GITHUB_WORKSPACE\" -v \"$RUNNER_TEMP:$RUNNER_TEMP\" postgres:16.15 $tool \"\$@\"" > "$RUNNER_TEMP/$tool-16.15"
+            printf '%s\n' '#!/usr/bin/env bash' "exec docker run --rm --network host -v \"$GITHUB_WORKSPACE:$GITHUB_WORKSPACE\" -v \"$RUNNER_TEMP:$RUNNER_TEMP\" -v /tmp:/tmp postgres:16.15 $tool \"\$@\"" > "$RUNNER_TEMP/$tool-16.15"
             chmod 700 "$RUNNER_TEMP/$tool-16.15"
             "$RUNNER_TEMP/$tool-16.15" --version
           done
