@@ -100,3 +100,5 @@ jobs:
         run: |
           PGPASSWORD=ci "$PG_PSQL_BIN" "$DATABASE_URL" -v ON_ERROR_STOP=1 -tAc \
             "SELECT value FROM backup_restore_sentinel WHERE id = 1" | grep -Fx 'v0.6-restore-ok'
+
+# Triggered intentionally to verify the dedicated DR workflow end-to-end.
