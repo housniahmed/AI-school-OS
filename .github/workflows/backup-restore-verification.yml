@@ -16,10 +16,31 @@ jobs:
   backup-restore:
     name: Backup restore workflow activation
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16.15
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: schoolos
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d schoolos"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/schoolos
+      BACKUP_DIR: ${{ runner.temp }}/ai-school-os-backups
+      BACKUP_RETENTION_DAYS: 35
+      RPO_TARGET_MINUTES: 1440
+      RTO_TARGET_MINUTES: 240
     steps:
       - name: Confirm workflow activation
         run: |
           echo "Backup Restore Verification workflow is scheduled and executing."
           echo "Commit: $GITHUB_SHA"
           echo "Branch: $GITHUB_REF_NAME"
+          pg_isready -h localhost -p 5432 -U ci -d schoolos
