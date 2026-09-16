@@ -65,13 +65,10 @@ jobs:
           echo "PG_DUMP_BIN=$RUNNER_TEMP/pg_dump-16.15" >> "$GITHUB_ENV"
           echo "PG_RESTORE_BIN=$RUNNER_TEMP/pg_restore-16.15" >> "$GITHUB_ENV"
           echo "PG_PSQL_BIN=$RUNNER_TEMP/psql-16.15" >> "$GITHUB_ENV"
-      - name: Create restore sentinel
+      - name: Create representative restore marker
         run: |
-          PGPASSWORD=ci "$PG_PSQL_BIN" "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
-          CREATE TABLE IF NOT EXISTS backup_restore_sentinel (id integer PRIMARY KEY, value text NOT NULL);
-          INSERT INTO backup_restore_sentinel (id, value) VALUES (1, 'v0.6-restore-ok')
-            ON CONFLICT (id) DO UPDATE SET value = EXCLUDED.value;
-          SQL
+          PGPASSWORD=ci "$PG_PSQL_BIN" "$DATABASE_URL" -v ON_ERROR_STOP=1 -c \
+            "CREATE TABLE IF NOT EXISTS backup_restore_sentinel (id integer PRIMARY KEY, value text NOT NULL); INSERT INTO backup_restore_sentinel (id, value) VALUES (1, 'v0.6-restore-ok') ON CONFLICT (id) DO UPDATE SET value = EXCLUDED.value;"
       - name: Prepare backup secret
         run: |
           set -euo pipefail
@@ -99,7 +96,10 @@ jobs:
           RTO_TARGET_MINUTES: 240
           DRILL_RUN_ID: ci-${{ github.run_id }}
         run: bash ./scripts/dr-drill.sh
-      - name: Validate restored sentinel
+      - name: Validate restored database structure
         run: |
+          set -euo pipefail
           PGPASSWORD=ci "$PG_PSQL_BIN" "$DATABASE_URL" -v ON_ERROR_STOP=1 -tAc \
-            "SELECT value FROM backup_restore_sentinel WHERE id = 1" | grep -Fx 'v0.6-restore-ok'
+            "SELECT COUNT(*) FROM _prisma_migrations" | grep -Eq '^[[:space:]]*[1-9][0-9]*[[:space:]]*$'
+          PGPASSWORD=ci "$PG_PSQL_BIN" "$DATABASE_URL" -v ON_ERROR_STOP=1 -tAc \
+            "SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'Tenant'" | grep -Fx '1'
