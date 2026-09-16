@@ -103,3 +103,5 @@ jobs:
             "SELECT COUNT(*) FROM _prisma_migrations" | grep -Eq '^[[:space:]]*[1-9][0-9]*[[:space:]]*$'
           PGPASSWORD=ci "$PG_PSQL_BIN" "$DATABASE_URL" -v ON_ERROR_STOP=1 -tAc \
             "SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'Tenant'" | grep -Fx '1'
+
+# V0.6 activation verification trigger: harmless comment-only change.
