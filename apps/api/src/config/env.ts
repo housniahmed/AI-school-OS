@@ -9,7 +9,11 @@ const schema = z.object({
   TRUST_PROXY: z.coerce.number().int().min(0).default(1),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
   JWT_SECRET: z.string().min(24).default('dev-only-change-this-secret-please'),
+  SECRETS_PROVIDER: z.enum(['env', 'external']).default('env'),
+  SECRETS_NAMESPACE: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
+  EXTERNAL_AI_PROCESSING_ACK: z.coerce.boolean().default(false),
+  METRICS_TOKEN: z.string().optional(),
   OPENAI_MODEL: z.string().default('gpt-5.6-luna'),
   OPENAI_EMBEDDING_MODEL: z.string().default('text-embedding-3-small'),
   AI_MAX_TOOL_CALLS: z.coerce.number().int().min(1).max(8).default(4),
@@ -17,4 +21,12 @@ const schema = z.object({
 });
 
 export const env = schema.parse(process.env);
-validateProductionConfig({ nodeEnv: env.NODE_ENV, jwtSecret: env.JWT_SECRET });
+validateProductionConfig({
+  nodeEnv: env.NODE_ENV,
+  jwtSecret: env.JWT_SECRET,
+  secretsProvider: env.SECRETS_PROVIDER,
+  secretsNamespace: env.SECRETS_NAMESPACE,
+  openAiApiKey: env.OPENAI_API_KEY,
+  externalAiProcessingAck: env.EXTERNAL_AI_PROCESSING_ACK,
+  metricsToken: env.METRICS_TOKEN
+});

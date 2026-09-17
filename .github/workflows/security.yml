@@ -1,0 +1,33 @@
+name: Security Scanning
+
+on:
+  push:
+    branches: [main, sync/v0.3-final, feat/v0.6-production-reliability]
+  pull_request:
+    branches: [main, sync/v0.3-final]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install API production dependencies
+        working-directory: apps/api
+        run: npm install --omit=dev --no-audit --no-fund
+      - name: Audit API production dependencies
+        working-directory: apps/api
+        run: npm audit --omit=dev --audit-level=high
+      - name: Install web production dependencies
+        working-directory: apps/web
+        run: npm install --omit=dev --no-audit --no-fund
+      - name: Audit web production dependencies
+        working-directory: apps/web
+        run: npm audit --omit=dev --audit-level=high
