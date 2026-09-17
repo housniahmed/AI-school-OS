@@ -33,10 +33,17 @@ backup_basename="$(basename "$BACKUP_FILE")"
 backup_timestamp="$(sed -nE 's/^schoolos-([0-9]{8}T[0-9]{6}Z)\.dump\.gpg$/\1/p' <<< "$backup_basename")"
 backup_age_minutes="UNKNOWN"
 if [[ -n "$backup_timestamp" ]]; then
-  backup_epoch="$(date -u -d "$backup_timestamp" +%s 2>/dev/null || true)"
+  backup_date="${backup_timestamp:0:4}-${backup_timestamp:4:2}-${backup_timestamp:6:2}"
+  backup_time="${backup_timestamp:9:2}:${backup_timestamp:11:2}:${backup_timestamp:13:2}"
+  backup_epoch="$(date -u -d "$backup_date $backup_time UTC" +%s 2>/dev/null || true)"
   if [[ -n "$backup_epoch" ]]; then
     now_epoch="$(date +%s)"
-    backup_age_minutes="$(( (now_epoch - backup_epoch) / 60 ))"
+    if (( now_epoch >= backup_epoch )); then
+      backup_age_minutes="$(( (now_epoch - backup_epoch) / 60 ))"
+    else
+      echo "Backup timestamp is in the future: $backup_timestamp" >&2
+      exit 1
+    fi
   fi
 fi
 
