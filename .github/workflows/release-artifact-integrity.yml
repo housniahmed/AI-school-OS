@@ -60,7 +60,7 @@ jobs:
         run: |
           set -euo pipefail
           manifest() {
-            find "$1" -type f -print0 | sort -z | xargs -0 sha256sum
+            find "$1" -type f -printf '%P\0' | sort -z | while IFS= read -r -d '' file; do sha256sum "$1/$file" | sed "s#  $1/#  #"; done
           }
           manifest /tmp/build-a > /tmp/build-a.manifest
           manifest /tmp/build-b > /tmp/build-b.manifest
