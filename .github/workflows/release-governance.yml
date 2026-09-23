@@ -1,0 +1,103 @@
+name: Release Governance
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_ref:
+        description: "Exact commit SHA to release"
+        required: true
+        type: string
+      release_version:
+        description: "Release version, for example v0.7.0"
+        required: true
+        type: string
+      confirm:
+        description: "Type RELEASE to authorize the release workflow"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: production-release
+  cancel-in-progress: false
+
+jobs:
+  release-gate:
+    name: Release gate
+    if: github.event.inputs.confirm == 'RELEASE'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - name: Validate release reference
+        env:
+          RELEASE_REF: ${{ inputs.release_ref }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_REF" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "release_ref must be a full 40-character commit SHA." >&2
+            exit 1
+          }
+
+      - name: Checkout exact release commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.release_ref }}
+          fetch-depth: 1
+
+      - name: Verify release commit is reachable from protected baseline
+        env:
+          RELEASE_REF: ${{ inputs.release_ref }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin sync/v0.3-final
+          git merge-base --is-ancestor "$RELEASE_REF" FETCH_HEAD
+
+      - name: Verify required repository files
+        run: |
+          set -euo pipefail
+          test -f apps/api/package-lock.json
+          test -f apps/web/package-lock.json
+          test -f docs/V0.7-SUPPLY-CHAIN.md
+
+      - name: Verify lockfile integrity
+        run: |
+          set -euo pipefail
+          npm --prefix apps/api ci --dry-run --ignore-scripts --no-audit --no-fund
+          npm --prefix apps/web ci --dry-run --ignore-scripts --no-audit --no-fund
+
+      - name: Create immutable release tag
+        env:
+          RELEASE_REF: ${{ inputs.release_ref }}
+          RELEASE_VERSION: ${{ inputs.release_version }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_VERSION" =~ ^v[0-9]+.[0-9]+.[0-9]+$ ]] || {
+            echo "release_version must use semantic version format vMAJOR.MINOR.PATCH." >&2
+            exit 1
+          }
+          if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_VERSION" >/dev/null 2>&1; then
+            echo "Release tag already exists: $RELEASE_VERSION" >&2
+            exit 1
+          fi
+          git tag -a "$RELEASE_VERSION" "$RELEASE_REF" -m "Release $RELEASE_VERSION"
+          git push origin "$RELEASE_VERSION"
+
+      - name: Record release metadata
+        env:
+          RELEASE_REF: ${{ inputs.release_ref }}
+          RELEASE_VERSION: ${{ inputs.release_version }}
+        run: |
+          set -euo pipefail
+          printf '%s\n'             "release_version=$RELEASE_VERSION"             "release_commit=$RELEASE_REF"             "released_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"             > release-metadata.txt
+
+      - name: Upload release metadata
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.2
+        with:
+          name: release-metadata-${{ inputs.release_version }}
+          path: release-metadata.txt
+          if-no-files-found: error
