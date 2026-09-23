@@ -28,6 +28,8 @@ concurrency:
 jobs:
   release-gate:
     name: Release gate
+    permissions:
+      contents: write
     if: github.event.inputs.confirm == 'RELEASE'
     runs-on: ubuntu-latest
     environment:
