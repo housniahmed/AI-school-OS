@@ -1,10 +1,12 @@
-name: CI
+name: CI Core
 
+# V0.6 production reliability: core CI includes the measurable backup/restore drill.
 on:
   push:
-    branches: [main, sync/v0.3-final]
+    branches: [main, sync/v0.3-final, feat/v0.6-production-reliability]
   pull_request:
     branches: [main, sync/v0.3-final]
+  workflow_dispatch:
 
 jobs:
   api:

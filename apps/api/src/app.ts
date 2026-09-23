@@ -1,8 +1,10 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import { context, trace } from '@opentelemetry/api';
 import { env } from './config/env.js';
 import { requestId } from './middleware/request-id.js';
+import { requestTrace } from './middleware/tracing.js';
 import { requestLogger } from './middleware/observability.js';
 import { apiRateLimiter } from './middleware/rate-limit.js';
 import { healthRouter } from './modules/health.js';
@@ -22,6 +24,7 @@ export function createApp() {
   app.set('trust proxy', env.TRUST_PROXY);
 
   app.use(requestId);
+  app.use(requestTrace);
   app.use(requestLogger);
   app.use(helmet());
   app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
@@ -29,7 +32,7 @@ export function createApp() {
 
   app.use('/health', healthRouter);
   app.use('/api/v1', apiRateLimiter);
-  app.get('/api/v1', (_req, res) => res.json({ name: 'AI School OS API', version: '0.5.0' }));
+  app.get('/api/v1', (_req, res) => res.json({ name: 'AI School OS API', version: '0.6.0' }));
   app.use('/api/v1/auth', authRouter);
   app.use('/api/v1/dashboard', dashboardRouter);
   app.use('/api/v1/assets', assetsRouter);
@@ -43,12 +46,13 @@ export function createApp() {
   app.use((_req, res) => res.status(404).json({ error: 'Route not found' }));
 
   app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
-    const message = err instanceof Error ? err.message : String(err);
+    const activeSpan = trace.getSpan(context.active());
     console.error(JSON.stringify({
       event: 'http.error',
       timestamp: new Date().toISOString(),
       requestId: req.requestId,
-      error: message
+      traceId: activeSpan?.spanContext().traceId,
+      errorType: err instanceof Error ? err.name : 'UnknownError'
     }));
     if (err instanceof Error && err.name === 'ZodError') return res.status(400).json({ error: 'Invalid request payload', requestId: req.requestId });
     res.status(500).json({ error: 'Internal server error', requestId: req.requestId });
