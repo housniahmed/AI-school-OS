@@ -2,9 +2,9 @@ name: Security Filesystem Scan
 
 on:
   push:
-    branches: [feat/v0.6-production-reliability]
+    branches: [main, sync/v0.3-final, feat/v0.6-production-reliability]
   pull_request:
-    branches: [sync/v0.3-final]
+    branches: [main, sync/v0.3-final]
   workflow_dispatch:
 
 permissions:
