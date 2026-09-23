@@ -44,13 +44,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
       - name: Initialize runner-local backup paths
         run: |
           set -euo pipefail
           echo "BACKUP_DIR=$RUNNER_TEMP/ai-school-os-backups" >> "$GITHUB_ENV"
       - name: Install API dependencies
         working-directory: apps/api
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Generate Prisma client
         working-directory: apps/api
         run: npm run prisma:generate
