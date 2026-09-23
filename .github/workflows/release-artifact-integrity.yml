@@ -1,0 +1,96 @@
+name: Release Artifact Integrity
+
+on:
+  push:
+    branches: [main, sync/v0.3-final, feat/v0.7-supply-chain-hardening]
+  pull_request:
+    branches: [main, sync/v0.3-final]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+jobs:
+  reproducibility:
+    name: Reproducible production builds
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            apps/api/package-lock.json
+            apps/web/package-lock.json
+
+      - name: Install API dependencies
+        working-directory: apps/api
+        run: npm ci --no-audit --no-fund
+
+      - name: Install web dependencies
+        working-directory: apps/web
+        run: npm ci --no-audit --no-fund
+
+      - name: Build production artifacts twice
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/build-a /tmp/build-b
+          npm --prefix apps/api run prisma:generate
+          npm --prefix apps/api run build
+          npm --prefix apps/web run build
+          mkdir -p /tmp/build-a/api /tmp/build-a/web
+          cp -a apps/api/dist /tmp/build-a/api/dist
+          cp -a apps/web/dist /tmp/build-a/web/dist
+
+          rm -rf apps/api/dist apps/web/dist
+          npm --prefix apps/api run prisma:generate
+          npm --prefix apps/api run build
+          npm --prefix apps/web run build
+          mkdir -p /tmp/build-b/api /tmp/build-b/web
+          cp -a apps/api/dist /tmp/build-b/api/dist
+          cp -a apps/web/dist /tmp/build-b/web/dist
+
+      - name: Compare reproducible build manifests
+        run: |
+          set -euo pipefail
+          manifest() {
+            find "$1" -type f -print0 | sort -z | xargs -0 sha256sum
+          }
+          manifest /tmp/build-a > /tmp/build-a.manifest
+          manifest /tmp/build-b > /tmp/build-b.manifest
+          diff -u /tmp/build-a.manifest /tmp/build-b.manifest
+
+      - name: Package deterministic production artifacts
+        if: github.event_name != 'pull_request'
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner -czf artifacts/api-dist.tar.gz -C /tmp/build-a/api dist
+          tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner -czf artifacts/web-dist.tar.gz -C /tmp/build-a/web dist
+          sha256sum artifacts/*.tar.gz | sort > artifacts/SHA256SUMS
+
+      - name: Upload production artifacts
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.2
+        with:
+          name: ai-school-os-production-artifacts
+          path: artifacts/
+          if-no-files-found: error
+
+      - name: Attest API artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/attest-build-provenance@21b787db45d5d4b6fc776b99a247a6493082d1fd # v4.1.1
+        with:
+          subject-path: artifacts/api-dist.tar.gz
+
+      - name: Attest web artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/attest-build-provenance@21b787db45d5d4b6fc776b99a247a6493082d1fd # v4.1.1
+        with:
+          subject-path: artifacts/web-dist.tar.gz
