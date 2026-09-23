@@ -3,6 +3,8 @@ name: Supply Chain SBOM
 on:
   push:
     branches: [main, sync/v0.3-final, feat/v0.7-supply-chain-hardening]
+  pull_request:
+    branches: [main, sync/v0.3-final]
   workflow_dispatch:
 
 permissions:
@@ -37,6 +39,7 @@ jobs:
           fi
 
       - name: Attest SBOM provenance
+        if: github.event_name != 'pull_request'
         uses: actions/attest-build-provenance@21b787db45d5d4b6fc776b99a247a6493082d1fd # v4.1.1
         with:
           subject-path: sbom.spdx.json
