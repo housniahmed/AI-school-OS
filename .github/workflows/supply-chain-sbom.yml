@@ -1,0 +1,42 @@
+name: Supply Chain SBOM
+
+on:
+  push:
+    branches: [main, sync/v0.3-final]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+jobs:
+  sbom:
+    name: Generate and attest SBOM
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Generate SPDX SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          path: .
+          format: spdx-json
+          output-file: sbom.spdx.json
+          artifact-name: ai-school-os-sbom.spdx.json
+          upload-artifact: true
+          upload-release-assets: false
+
+      - name: Verify SBOM does not contain obvious secret material
+        run: |
+          set -euo pipefail
+          if grep -Eiq 'BEGIN (RSA|OPENSSH|EC|DSA) PRIVATE KEY|GITHUB_TOKEN|OPENAI_API_KEY|JWT_SECRET|PASSWORD=' sbom.spdx.json; then
+            echo "Potential secret material detected in SBOM output." >&2
+            exit 1
+          fi
+
+      - name: Attest SBOM provenance
+        uses: actions/attest-build-provenance@21b787db45d5d4b6fc776b99a247a6493082d1fd # v4.1.1
+        with:
+          subject-path: sbom.spdx.json
