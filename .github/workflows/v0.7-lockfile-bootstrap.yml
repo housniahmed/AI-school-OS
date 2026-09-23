@@ -36,3 +36,5 @@ jobs:
           fi
           git commit -m "build(v0.7): add npm lockfiles"
           git push origin HEAD:${{ github.head_ref || github.ref_name }}
+
+# bootstrap lockfiles during PR validation
