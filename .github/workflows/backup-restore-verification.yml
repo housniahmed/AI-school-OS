@@ -5,7 +5,7 @@ on:
     branches:
       - 'main'
       - 'sync/v0.3-final'
-      - 'feat/v0.6-production-reliability'
+      - 'feat/v0.7-supply-chain-hardening'
   pull_request:
     branches:
       - 'main'
