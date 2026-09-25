@@ -2,7 +2,7 @@ name: Security Scanning
 
 on:
   push:
-    branches: [main, sync/v0.3-final, feat/v0.6-production-reliability]
+    branches: [main, sync/v0.3-final, feat/v0.7-supply-chain-hardening]
   pull_request:
     branches: [main, sync/v0.3-final]
   workflow_dispatch:
