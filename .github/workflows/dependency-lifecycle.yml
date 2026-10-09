@@ -1,0 +1,86 @@
+name: Dependency Lifecycle
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  push:
+    branches: [main, sync/v0.3-final, feat/v0.7-supply-chain-hardening]
+  pull_request:
+    branches: [main, sync/v0.3-final]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-lifecycle:
+    name: Dependency lifecycle
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            apps/api/package-lock.json
+            apps/web/package-lock.json
+
+      - name: Validate dependency exception register
+        run: node scripts/validate-dependency-exceptions.mjs
+
+      - name: Install API dependencies
+        working-directory: apps/api
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Install web dependencies
+        working-directory: apps/web
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Verify lockfiles are reproducible
+        run: |
+          set -euo pipefail
+          npm --prefix apps/api ci --dry-run --ignore-scripts --no-audit --no-fund
+          npm --prefix apps/web ci --dry-run --ignore-scripts --no-audit --no-fund
+
+      - name: Generate API audit report
+        working-directory: apps/api
+        run: npm audit --json > ../../api-audit.json || true
+
+      - name: Generate web audit report
+        working-directory: apps/web
+        run: npm audit --json > ../../web-audit.json || true
+
+      - name: Enforce high and critical vulnerability gate
+        run: |
+          set -euo pipefail
+          npm --prefix apps/api audit --audit-level=high
+          npm --prefix apps/web audit --audit-level=high
+
+      - name: Generate API outdated report
+        working-directory: apps/api
+        run: npm outdated --json > ../../api-outdated.json || true
+
+      - name: Generate web outdated report
+        working-directory: apps/web
+        run: npm outdated --json > ../../web-outdated.json || true
+
+      - name: Generate license inventory
+        env:
+          DEPENDENCY_INVENTORY_OUTPUT: dependency-inventory.json
+        run: node scripts/dependency-inventory.mjs
+
+      - name: Upload lifecycle evidence
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.2
+        with:
+          name: dependency-lifecycle-evidence
+          path: |
+            api-audit.json
+            web-audit.json
+            api-outdated.json
+            web-outdated.json
+            dependency-inventory.json
+          if-no-files-found: error

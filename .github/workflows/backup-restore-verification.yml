@@ -5,7 +5,7 @@ on:
     branches:
       - 'main'
       - 'sync/v0.3-final'
-      - 'feat/v0.6-production-reliability'
+      - 'feat/v0.7-supply-chain-hardening'
   pull_request:
     branches:
       - 'main'
@@ -40,17 +40,19 @@ jobs:
       RPO_TARGET_MINUTES: 1440
       RTO_TARGET_MINUTES: 240
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
       - name: Initialize runner-local backup paths
         run: |
           set -euo pipefail
           echo "BACKUP_DIR=$RUNNER_TEMP/ai-school-os-backups" >> "$GITHUB_ENV"
       - name: Install API dependencies
         working-directory: apps/api
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Generate Prisma client
         working-directory: apps/api
         run: npm run prisma:generate

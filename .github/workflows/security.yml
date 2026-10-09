@@ -2,7 +2,7 @@ name: Security Scanning
 
 on:
   push:
-    branches: [main, sync/v0.3-final, feat/v0.6-production-reliability]
+    branches: [main, sync/v0.3-final, feat/v0.7-supply-chain-hardening]
   pull_request:
     branches: [main, sync/v0.3-final]
   workflow_dispatch:
@@ -15,19 +15,42 @@ jobs:
     name: Dependency audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            apps/api/package-lock.json
+            apps/web/package-lock.json
       - name: Install API production dependencies
         working-directory: apps/api
-        run: npm install --omit=dev --no-audit --no-fund
+        run: npm ci --omit=dev --no-audit --no-fund
       - name: Audit API production dependencies
         working-directory: apps/api
         run: npm audit --omit=dev --audit-level=high
       - name: Install web production dependencies
         working-directory: apps/web
-        run: npm install --omit=dev --no-audit --no-fund
+        run: npm ci --omit=dev --no-audit --no-fund
       - name: Audit web production dependencies
         working-directory: apps/web
         run: npm audit --omit=dev --audit-level=high
+
+  dependency-policy:
+    name: Full dependency audit policy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            apps/api/package-lock.json
+            apps/web/package-lock.json
+      - name: Audit API dependency graph
+        working-directory: apps/api
+        run: npm audit --audit-level=high
+      - name: Audit web dependency graph
+        working-directory: apps/web
+        run: npm audit --audit-level=high
